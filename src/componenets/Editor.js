@@ -6,11 +6,14 @@ import 'codemirror/mode/javascript/javascript';
 import 'codemirror/mode/python/python';
 import 'codemirror/mode/xml/xml';
 import 'codemirror/mode/css/css';
+import 'codemirror/mode/rust/rust';
 import 'codemirror/mode/clike/clike'; // for C, C++, Java
 import 'codemirror/mode/go/go';
 import 'codemirror/mode/markdown/markdown';
 import 'codemirror/addon/edit/closetag';
 import 'codemirror/addon/edit/closebrackets';
+
+
 
 import ACTIONS from '../Action';
 
@@ -23,7 +26,8 @@ const languageModes = {
     c: { name: 'text/x-csrc' },      // C language mode
     cpp: { name: 'text/x-c++src' },  // C++ language mode
     java: { name: 'text/x-java' },    // Java language mode
-    go: { name: 'go'}
+    go: { name: 'go'},
+    rust: { name: 'rust'}
     // Add other languages here
 };
 
@@ -93,8 +97,10 @@ const Editor = ({ socketRef, roomId, onCodeChange }) => {
                 <option value="c">C</option>
                 <option value="cpp">C++</option>
                 <option value="java">Java</option>
-                {/* Add more options as needed */}
+                <option value="rust">Rust</option>
                 <option value="go">Go</option>
+                {/* Add more options as needed */}
+                
             </select>
             <textarea id="realtimeEditor"></textarea>
         </div>
