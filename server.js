@@ -19,7 +19,7 @@ function getAllConnectedClients(roomId) {
     return Array.from(io.sockets.adapter.rooms.get(roomId) || []).map((socketId) => {
         return {
             socketId,
-            username: userSocketMap[socketId],
+            username: Object.keys(userSocketMap).find((key) => userSocketMap[key].includes(socketId)),
         };
     });
 }
@@ -28,23 +28,28 @@ io.on('connection', (socket) => {
     console.log('socket connected', socket.id);
 
     socket.on(ACTIONS.JOIN, ({ roomId, username }) => {
-        // Check if username is already connected
-        const existingSocketId = Object.keys(userSocketMap).find(
-            (id) => userSocketMap[id] === username
+        // Check if the user is already connected in the room
+        const existingClient = getAllConnectedClients(roomId).find(
+            (client) => client.username === username
         );
-        
-        // If a socket with the same username exists, disconnect it
-        if (existingSocketId) {
-            io.sockets.sockets.get(existingSocketId)?.disconnect();
-            console.log(`Disconnected previous connection for ${username}`);
+
+        // If found, disconnect the existing connection for the same username
+        if (existingClient) {
+            io.sockets.sockets.get(existingClient.socketId)?.disconnect();
+            console.log(`Disconnected previous connection for ${username} in room ${roomId}`);
         }
 
         // Register the new connection
-        userSocketMap[socket.id] = username;
+        if (!userSocketMap[username]) {
+            userSocketMap[username] = [];
+        }
+        userSocketMap[username].push(socket.id);
         socket.join(roomId);
 
         const clients = getAllConnectedClients(roomId);
         console.log(clients);
+
+        // Notify all clients in the room
         clients.forEach(({ socketId }) => {
             io.to(socketId).emit(ACTIONS.JOINED, {
                 clients,
@@ -67,10 +72,22 @@ io.on('connection', (socket) => {
         rooms.forEach((roomId) => {
             socket.in(roomId).emit(ACTIONS.DISCONNECTED, {
                 socketId: socket.id,
-                username: userSocketMap[socket.id],
+                username: Object.keys(userSocketMap).find((key) => userSocketMap[key].includes(socket.id)),
             });
         });
-        delete userSocketMap[socket.id];
+
+        // Remove socket ID from userSocketMap
+        for (const [username, socketIds] of Object.entries(userSocketMap)) {
+            const index = socketIds.indexOf(socket.id);
+            if (index !== -1) {
+                socketIds.splice(index, 1);
+                // Delete the username entry if no sockets remain
+                if (socketIds.length === 0) {
+                    delete userSocketMap[username];
+                }
+                break;
+            }
+        }
     });
 });
 
