@@ -17,18 +17,19 @@ const EditorPage = () => {
     // Updated useEffect to avoid multiple socket connections
     useEffect(() => {
         const init = async () => {
-            if (!socketRef.current) { // Only initialize if the socket is not already connected
+         { // Only initialize if the socket is not already connected
                 socketRef.current = await initSocket();
+                socketRef.current.on('connect_error', (err) => handleErrors(err));
+                socketRef.current.on('connect_failed', (err) => handleErrors(err));
 
                 // Register error handlers
-                const handleErrors = (e) => {
+                function handleErrors(e){
                     console.log('Socket error:', e);
                     toast.error('Socket connection failed, try again later.');
                     reactNavigator('/');
                 };
 
-                socketRef.current.on('connect_error', handleErrors);
-                socketRef.current.on('connect_failed', handleErrors);
+               
 
                 // Emit join event
                 socketRef.current.emit(ACTIONS.JOIN, {

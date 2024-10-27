@@ -14,25 +14,37 @@ app.use((req, res, next) => {
 });
 
 const userSocketMap = {};
+
 function getAllConnectedClients(roomId) {
-    // Map
-    return Array.from(io.sockets.adapter.rooms.get(roomId) || []).map(
-        (socketId) => {
-            return {
-                socketId,
-                username: userSocketMap[socketId],
-            };
-        }
-    );
+    return Array.from(io.sockets.adapter.rooms.get(roomId) || []).map((socketId) => {
+        return {
+            socketId,
+            username: userSocketMap[socketId],
+        };
+    });
 }
 
 io.on('connection', (socket) => {
     console.log('socket connected', socket.id);
 
     socket.on(ACTIONS.JOIN, ({ roomId, username }) => {
+        // Check if username is already connected
+        const existingSocketId = Object.keys(userSocketMap).find(
+            (id) => userSocketMap[id] === username
+        );
+        
+        // If a socket with the same username exists, disconnect it
+        if (existingSocketId) {
+            io.sockets.sockets.get(existingSocketId)?.disconnect();
+            console.log(`Disconnected previous connection for ${username}`);
+        }
+
+        // Register the new connection
         userSocketMap[socket.id] = username;
         socket.join(roomId);
+
         const clients = getAllConnectedClients(roomId);
+        console.log(clients);
         clients.forEach(({ socketId }) => {
             io.to(socketId).emit(ACTIONS.JOINED, {
                 clients,
@@ -49,18 +61,6 @@ io.on('connection', (socket) => {
     socket.on(ACTIONS.SYNC_CODE, ({ socketId, code }) => {
         io.to(socketId).emit(ACTIONS.CODE_CHANGE, { code });
     });
-    // WebRTC Signaling
-    //socket.on('webrtc:offer', (data) => {
-    //    io.to(data.to).emit('webrtc:offer', { sdp: data.sdp, from: socket.id });
-    //});
-
-    //socket.on('webrtc:answer', (data) => {
-    //    io.to(data.to).emit('webrtc:answer', { sdp: data.sdp, from: socket.id });
-    //});
-
-    //socket.on('webrtc:ice-candidate', (data) => {
-    //    io.to(data.to).emit('webrtc:ice-candidate', { candidate: data.candidate, from: socket.id });
-    //});
 
     socket.on('disconnecting', () => {
         const rooms = [...socket.rooms];
@@ -71,7 +71,6 @@ io.on('connection', (socket) => {
             });
         });
         delete userSocketMap[socket.id];
-        socket.leave();
     });
 });
 
